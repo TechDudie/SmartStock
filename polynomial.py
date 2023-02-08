@@ -19,6 +19,7 @@ time = lambda: (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000
 
 ticker = "MSFT"
 desmos = False
+polynomialize = False
 getcontext().prec = 50
 yf.pdr_override()
 
@@ -34,7 +35,13 @@ if len(sys.argv) > 2:
     desmos = True
     log("Desmos mode enabled. Polynomial exponents will be printed in Desmos format")
 else:
-    log("Desmos mode disabled. Polynomial exponents will be printed with a caret.")
+    log("Desmos mode disabled. Polynomial exponents will be printed with a caret")
+
+if len(sys.argv) > 3:
+    polynomialize = True
+    log("Equation will be approximated with a polynomial")
+else:
+    log("Equation will not be polynomialized; it cannot be represented by a function")
 
 try:
     socket.setdefaulttimeout(3)
@@ -163,7 +170,7 @@ def polyprint(coefficients, desmos=False):
         else:
             pass
         x -= 1
-    print(string)
+    log(string)
 
 def polygraph(x, coefficients):
     """
@@ -183,24 +190,23 @@ def polygraph(x, coefficients):
         y += coefficients[i] * x ** i
     return y
 
-if __name__ == "__main__":
+if polynomialize:
     ms = time()
 
     # Download the stock data from Yahoo Finance
     log("Downloading stock data...")
     data = list(reader.get_data_yahoo(ticker, period="1d", interval="1m")["Close"].values[-5:])
-    print(data)
     x_axis = []
     y_axis = []
     for x, y in enumerate(data):
         x_axis.append(x)
         y_axis.append(y)
-    print(data)
+    log(str(data))
 
     log("Approximating polynomial...")
-    print(degree(y_axis))
+    log(f"Degree: {degree(y_axis)}")
     coeffs = polynomial(x_axis, y_axis, degree(y_axis)) # Calculate the polynomial approximation from the given lest of points
-    print(coeffs)
+    log(str(coeffs))
     polyprint(coeffs, desmos=desmos)
     log("Calculating first derivative...")
     derivative_1 = derivative(coeffs) # Calculate the first derivative
@@ -216,6 +222,23 @@ if __name__ == "__main__":
     plt.plot(x_linspace, polygraph(x_linspace, coeffs), color="red")
     plt.plot(x_linspace, polygraph(x_linspace, derivative_1), color="green")
     plt.plot(x_linspace, polygraph(x_linspace, derivative_2), color="blue")
+
+    log(f"Done in {math.floor(time() - ms)} ms.")
+    plt.show()
+else:
+    ms = time()
+
+    # Download the stock data from Yahoo Finance
+    log("Downloading stock data...")
+    data = list(reader.get_data_yahoo(ticker, period="1d", interval="1m")["Close"])
+    x_axis = []
+    y_axis = []
+    for x, y in enumerate(data):
+        x_axis.append(x)
+        y_axis.append(y)
+    log(str(data))
+
+    
 
     log(f"Done in {math.floor(time() - ms)} ms.")
     plt.show()
