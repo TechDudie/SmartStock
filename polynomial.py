@@ -1,15 +1,15 @@
 from decimal import Decimal, getcontext
+from datetime import datetime
+import math
+import socket
+import sys
 import numpy as np
 from numpy import transpose
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 from pandas_datareader import data as reader
-import yfinance as yf
-from datetime import datetime
 import pytz
-import math
-import socket
-import sys
+import yfinance as yf
 
 def log(message, level="INFO"):
     now = datetime.now().strftime("[%H:%M:%S]")
@@ -101,6 +101,27 @@ def derivative(coefficients):
     result = result[::-1]
     return result
 
+def differenciate(values):
+    """
+    Calculates the differences of a list of values.
+
+    Parameters:
+        values (list): A list of values
+
+    Returns:
+        result (list): The differences of the values
+    """
+    result = []
+    prev = None
+    for i in values:
+        if i is None or prev is None:
+            result.append(None)
+            prev = i
+            continue
+        result.append(i - prev)
+        prev = i
+    return result
+
 def peak(y_axis):
     """
     Calculates how many times a graph peaks.
@@ -136,7 +157,7 @@ def degree(y_axis):
     Returns:
         degree (int): The optimal degree.
     """
-    # I'll be honest, I just made this random algorition up.
+    # I'll be honest, I just made this random algoritiom up.
     return math.floor(math.e * math.log(len(y_axis)))
 
 def polyprint(coefficients, desmos=False):
@@ -151,14 +172,14 @@ def polyprint(coefficients, desmos=False):
     for i in coefficients:
         if not strings:
             if i > 0:
-                strings.append('{0:.5f}'.format(abs(i)))
+                strings.append("{0:.5f}".format(abs(i)))
             elif i < 0:
-                strings.append("-" + '{0:.5f}'.format(abs(i)))
+                strings.append("-{0:.5f}".format(abs(i)))
             continue
         if i > 0:
-            strings.append(" + " + '{0:.5f}'.format(abs(i)))
+            strings.append(" + {0:.5f}".format(abs(i)))
         elif i < 0:
-            strings.append(" - " + '{0:.5f}'.format(abs(i)))
+            strings.append(" - {0:.5f}".format(abs(i)))
     string = "y = "
     x = len(strings)
     for i in strings:
@@ -190,22 +211,23 @@ def polygraph(x, coefficients):
         y += coefficients[i] * x ** i
     return y
 
+ms = time()
+
+# Download the stock data from Yahoo Finance
+log("Downloading stock data...")
+data = list(reader.get_data_yahoo(ticker, period="1d", interval="1m")["Close"])
+x_axis = []
+y_axis = []
+for x, y in enumerate(data):
+    x_axis.append(x)
+    y_axis.append(y)
+
+log(str(data) if polynomialize else f"{str(data)[:80]}...")
+
 if polynomialize:
-    ms = time()
-
-    # Download the stock data from Yahoo Finance
-    log("Downloading stock data...")
-    data = list(reader.get_data_yahoo(ticker, period="1d", interval="1m")["Close"].values[-5:])
-    x_axis = []
-    y_axis = []
-    for x, y in enumerate(data):
-        x_axis.append(x)
-        y_axis.append(y)
-    log(str(data))
-
     log("Approximating polynomial...")
     log(f"Degree: {degree(y_axis)}")
-    coeffs = polynomial(x_axis, y_axis, degree(y_axis)) # Calculate the polynomial approximation from the given lest of points
+    coeffs = polynomial(x_axis, y_axis, degree(y_axis)) # Calculate the polynomial approximation from the given list of points
     log(str(coeffs))
     polyprint(coeffs, desmos=desmos)
     log("Calculating first derivative...")
@@ -219,26 +241,21 @@ if polynomialize:
     log("Graphing equations...")
     x_linspace = np.linspace(0, len(y_axis) - 1, len(y_axis) * 10 - 10)
     plt.scatter(x_axis, y_axis, color="black")
-    plt.plot(x_linspace, polygraph(x_linspace, coeffs), color="red")
-    plt.plot(x_linspace, polygraph(x_linspace, derivative_1), color="green")
-    plt.plot(x_linspace, polygraph(x_linspace, derivative_2), color="blue")
-
-    log(f"Done in {math.floor(time() - ms)} ms.")
-    plt.show()
+    plt.plot(x_linspace, polygraph(x_linspace, coeffs), "r")
+    plt.plot(x_linspace, polygraph(x_linspace, derivative_1), "g")
+    plt.plot(x_linspace, polygraph(x_linspace, derivative_2), "b")
 else:
-    ms = time()
+    log("Calculating first difference...")
+    diff_1 = differenciate(y_axis) # Calculate the first difference
+    log(f"{str(diff_1)[:80]}...")
+    log("Calculating second difference...")
+    diff_2 = differenciate(diff_1) # Calculate the second difference
+    log(f"{str(diff_2)[:80]}...")
 
-    # Download the stock data from Yahoo Finance
-    log("Downloading stock data...")
-    data = list(reader.get_data_yahoo(ticker, period="1d", interval="1m")["Close"])
-    x_axis = []
-    y_axis = []
-    for x, y in enumerate(data):
-        x_axis.append(x)
-        y_axis.append(y)
-    log(str(data))
+    plt.plot(x_axis, y_axis, '-r')
+    plt.plot(x_axis[1:], diff_1[1:], '-g')
+    plt.plot(x_axis[2:], diff_2[2:], '-b')
 
-    
+log(f"Done in {math.floor(time() - ms)} ms.")
+plt.show()
 
-    log(f"Done in {math.floor(time() - ms)} ms.")
-    plt.show()
